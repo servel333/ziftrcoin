@@ -7,18 +7,92 @@ Once per-computer or per-developer
 
 #### OS X
 
-	brew install gpg
-	gpg --gen-key
+* Install VirtualBox
+* Verify `which VBoxManage` produces `/usr/bin/VBoxManage`
+* Download Ubuntu 12.04.5 "Server Install CD" .iso files from http://releases.ubuntu.com/precise/
+  * [ubuntu-12.04.5-server-amd64.iso](http://releases.ubuntu.com/precise/ubuntu-12.04.5-server-amd64.iso)
+  * [ubuntu-12.04.5-server-i386.iso](http://releases.ubuntu.com/precise/ubuntu-12.04.5-server-i386.iso)
+  * This is documented at the top of the
+[gitian](https://github.com/ZiftrCOIN/ziftrcoin/blob/master/contrib/gitian-descriptors/gitian-linux.yml)
+[descriptor](https://github.com/ZiftrCOIN/ziftrcoin/blob/master/contrib/gitian-descriptors/gitian-win.yml)
+[files](https://github.com/ZiftrCOIN/ziftrcoin/blob/master/contrib/gitian-descriptors/gitian-osx-ziftrcoin.yml).
+* The next step is to create a virtual machine in VirtualBox
+  1. Create a new virtual machine
+    * Name: `Gitian-precise-amd64`
+    * The name is important! It must be `Gitian-{suite}-{architecture}` for gitian builder to work.
+    * Type: `Linux`
+    * Version: `Ubuntu`
+  1. ... and press Continue.
+  1. Memory Size:  6000 MB (6 gigabytes). Less probably works.
+  1. ... and press Continue
+  1. Check create a virtual hard drive now, press Create
+  1. Check VDI (VirtualBox Disk Image)
+  1. Check Dynamically Allocated
+  1. Select 20.00 GB for the size
+  1. VirtualBox Machine -> Settings -> Give the VM more CPU cores if you can
+* The next step is to create two virtual machines in VirtualBox from the two downloaded .iso files:
+  1. Create a new virtual machine
+    * Name: `Gitian-precise-i386`
+    * Type: `Linux`
+    * Version: `Ubuntu`
+  1. ... and press Continue. The name is important! It must be Gitian-{suite}-{architecture} for gitian builder to work.
+  1. Memory Size:  6000 MB (6 gigabytes). Less probably works.
+  1. ... and press Continue
+  1. Check create a virtual hard drive now, press Create
+  1. Check VDI (VirtualBox Disk Image)
+  1. Check Dynamically Allocated
+  1. Select 20.00 GB for the size
+  1. VirtualBox Machine -> Settings -> Give the VM more CPU cores if you can
 
-	Please select what kind of key you want: (1) RSA and RSA (default)
-	What keysize do you want? (2048) 2048
-	Key is valid for? (0) 0 = key does not expire
-	Is this correct? (y/N) y
-	Your name: ...
-	Your email: ...
-	Optionally a comment: ...
-	Change (N)ame, (C)omment, (E)mail or (O)kay/(Q)uit? o
-	Passphrase ...
+```
+VBoxManage modifyvm Gitian-precise-amd64 --natpf1 "guestssh,tcp,,2223,,22"
+VBoxManage modifyvm Gitian-precise-i386 --natpf1 "guestssh,tcp,,2223,,22"
+
+# ... install Ubuntu on each
+# Do some other steps from http://gavintech.blogspot.com/2014/02/gitian-building-bitcoin-releases.html
+# Follow `Fix Apt-get before snapshop` below
+# Take snapshot named `Gitian-Clean`
+# Continue steps from http://gavintech.blogspot.com/2014/02/gitian-building-bitcoin-releases.html
+
+Install GPG and create a key for signing your build
+brew install gpg
+gpg --gen-key
+
+Please select what kind of key you want: (1) RSA and RSA (default)
+What keysize do you want? (2048) 2048
+Key is valid for? (0) 0 = key does not expire
+Is this correct? (y/N) y
+Your name: ...
+Your email: ...
+Optionally a comment: ...
+Change (N)ame, (C)omment, (E)mail or (O)kay/(Q)uit? o
+Passphrase ...
+```
+
+##### Fix Apt-get before snapshop
+
+```
+rm -rf /var/lib/apt/lists/partial/*
+
+# update gpg key:
+gpg --keyserver keyserver.ubuntu.com --recv 40976EAF437D05B5
+
+# rebuild cache:
+cd /var/lib/apt
+sudo mv lists lists.old
+sudo mkdir -p lists/partial
+
+# update, clean, autoclean, and autoremove for good measure before attempting to upgrade again:
+sudo apt-get update && sudo apt-get clean && sudo apt-get autoremove && sudo apt-get autoclean && sudo apt-get upgrade
+```
+
+##### Create `sha256sum`
+
+`/bin/sha256sum`
+```
+#!/bin/bash
+shasum -a 256 $@
+```
 
 * * *
 
@@ -48,7 +122,7 @@ Once per-computer or per-developer
 
 ##perform gitian builds
 
- If needed, create a build directory
+ If needed, create a build directory, then clone the repos you will need
 
 	git clone git@github.com:devrandom/gitian-builder.git
 	git clone git@github.com:ZiftrCOIN/ziftrcoin.git
